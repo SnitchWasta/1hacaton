@@ -1,6 +1,37 @@
 import sqlite3
 
 ###############
+def get_halfhour_info(name):
+    connect = sqlite3.connect('database.db')
+    command = connect.cursor()
+    print(name)
+    str_comm = f"""
+    SELECT c.date, c.time, c.energy FROM consumption c 
+    JOIN equipment AS e
+    ON e.id = c.equipment_id
+    WHERE e.name = '{name}' 
+    AND c.id = (
+        SELECT MAX(c.id) FROM consumption c
+        JOIN equipment AS e
+        ON e.id = c.equipment_id 
+        WHERE e.name = '{name}'
+    )
+    """
+    rows = command.execute(str_comm).fetchall()
+    connect.close()
+    total_consumption = 0
+    print(rows)
+    for row in rows:
+        total_consumption += row[2]
+    if total_consumption >=2:
+        status = "В рабочем состоянии"
+    elif total_consumption > 0:
+        status = "В фоновом режиме"
+    else:
+        status = "Отключён"
+    return str(name) + " | " + str(total_consumption) + " | " + status + "\n"
+
+
 def get_info(name, date):
     connect = sqlite3.connect('database.db')
     command = connect.cursor()
