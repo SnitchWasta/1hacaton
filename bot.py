@@ -5,18 +5,21 @@ from aiogram.filters import Command
 import asyncio 
 from aiogram.types import FSInputFile
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from functions import get_info, process_all, write_info_in, dates_command, names_command, get_halfhour_info
+from functions import get_info, process_all, write_info_in, dates_command, names_command
 from classes import DateCallbackData, DeviceCallbackData, SchedulerCallbackData, SchedulerStates, DeviceNowCallbackData
 from aiogram.fsm.context import FSMContext
-
+from analize import start_cycle, check_end_of_cycle, check_start_of_cycle, get_range_info, get_current_info
 schedule_token = False
 schedule_interval = 10
+
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-connect = sqlite3.connect("database.db") 
-command = connect.cursor()
+
+# connect = sqlite3.connect("database.db") 
+# command = connect.cursor()
+
 
 async def task_run(id):
     global schedule_token, schedule_interval
@@ -25,12 +28,14 @@ async def task_run(id):
             await send_report(id)
             await asyncio.sleep(schedule_interval * 60) 
 
+
 @dp.message(Command("start"))
 async def start(message: types.Message):
     kb = [
         [
             types.KeyboardButton(text="Настроить планировщик"),
-            types.KeyboardButton(text="Получить состояние устройства")
+            types.KeyboardButton(text="Получить состояние устройства"),
+            #types.KeyboardButton(text="Состояние устройства за последний период")
         ],
     ]
     keyboard = types.ReplyKeyboardMarkup(
@@ -40,10 +45,15 @@ async def start(message: types.Message):
     )
     await message.answer("Выберите опцию", reply_markup=keyboard)
 
+
+
 @dp.message(F.text.lower() == "получить состояние устройства")
 async def get_device_info(message: types.Message):
     builder = InlineKeyboardBuilder()
+    connect = sqlite3.connect("database.db") 
+    command = connect.cursor()
     names = command.execute(names_command)
+    
     for name in names:
         builder.add(
             types.InlineKeyboardButton(
@@ -51,10 +61,20 @@ async def get_device_info(message: types.Message):
                 callback_data=DeviceNowCallbackData(value = name[0]).pack()
             )
         )
+    connect.close()
     await message.answer(
         "Выберите устройство",
         reply_markup=builder.as_markup()
     )
+
+
+def remake_array(x):
+    print(x)
+    string = ""
+    for i in x:
+        string += str(i) + " | "
+    return string + "\n"
+
 
 @dp.callback_query(DeviceNowCallbackData.filter())
 async def handle_scheduler_callback(
@@ -62,9 +82,9 @@ async def handle_scheduler_callback(
     callback_data: DeviceNowCallbackData
 ):
     name = callback_data.value
-    write_info_in(get_halfhour_info(name))
+    write_info_in(remake_array(get_current_info(name)))
     await callback.message.answer_document(FSInputFile('otchet.txt'))
-   
+
 
 
 @dp.message(F.text.lower() == "настроить планировщик")
@@ -95,6 +115,7 @@ async def scheduler_settings(message: types.Message):
         reply_markup=builder.as_markup()
     )
 
+
 @dp.callback_query(SchedulerCallbackData.filter())
 async def handle_scheduler_callback(
     callback: types.CallbackQuery, 
@@ -121,6 +142,7 @@ async def handle_scheduler_callback(
     
     await state.update_data(schedule_token=schedule_token)
 
+
 @dp.message(SchedulerStates.waiting_for_schedule)
 async def process_schedule_input(message: types.Message, state: FSMContext):
     global schedule_interval
@@ -137,6 +159,7 @@ async def process_schedule_input(message: types.Message, state: FSMContext):
     await message.answer(f"Новое расписание установлено: {user_input}")
     await state.clear()
 
+
 def validate_time_format(time_str: str) -> bool:
     try:
         hours, minutes = map(int, time_str.split(':'))
@@ -144,23 +167,33 @@ def validate_time_format(time_str: str) -> bool:
     except ValueError:
         return False
 
+
 def apply_new_schedule(time_str: str):
     global schedule_interval
     hours, minutes = map(int, time_str.split(':'))
     schedule_interval = hours * 60 + minutes
     print(f"Установлено новое время: {time_str}")
 
+
 def get_halfhour_report():
     info_str = ""
+    connect = sqlite3.connect("database.db") 
+    command = connect.cursor()
     names = command.execute(names_command)
     for name in names:
-        info_str += get_halfhour_info(name[0])
+        print(name)
+        check_start_of_cycle(name[0])
+        info_str += remake_array(get_current_info(name[0]))
+        check_end_of_cycle(name[0])
+    connect.close()
     print(info_str)
     write_info_in(info_str)
+
 
 async def send_report(chat_id: int):
     get_halfhour_report()
     await bot.send_document(chat_id=chat_id, document=FSInputFile('otchet.txt'))
+
 
 @dp.message(Command("info"))
 async def send_info(message: types.Message):
@@ -178,16 +211,21 @@ async def send_info(message: types.Message):
     )
     await message.answer("Какую информацию предоставить?", reply_markup=keyboard)
 
+
 @dp.message(F.text.lower() == "всю информацию")
 async def all_info(message: types.Message):
     write_info_in(process_all())
     await message.answer_document(FSInputFile('otchet.txt'))
 
+
 @dp.message(F.text.lower() == "конкретное устройство")
 async def choose_equip(message: types.Message):
     builder = InlineKeyboardBuilder()
+    connect = sqlite3.connect("database.db") 
+    command = connect.cursor()
+
     names = command.execute(names_command).fetchall()
-    
+    connect.close()
     for name in names:
         device_name = str(name[0])
         builder.add(types.InlineKeyboardButton(
@@ -200,11 +238,14 @@ async def choose_equip(message: types.Message):
         reply_markup=builder.as_markup()
     )
 
+
 @dp.message(F.text.lower() == "по дате")
 async def choose_date(message: types.Message):
     builder = InlineKeyboardBuilder()
+    connect = sqlite3.connect("database.db") 
+    command = connect.cursor()
     dates = command.execute(dates_command).fetchall()
-    
+    connect.close()
     for date in dates:
         date_period = str(date[0])
         builder.add(types.InlineKeyboardButton(
@@ -217,18 +258,23 @@ async def choose_date(message: types.Message):
         reply_markup=builder.as_markup()
     )
 
+
 @dp.callback_query(DateCallbackData.filter())
 async def Datecallback(
     callback: types.CallbackQuery, 
     callback_data: DateCallbackData
 ):
     date_value = callback_data.value
+    connect = sqlite3.connect("database.db") 
+    command = connect.cursor()
     names = command.execute(names_command).fetchall()
+    connect.close()
     info = ""
     for name in names:
         info += get_info(name[0], date_value)
     write_info_in(info)
     await callback.message.answer_document(FSInputFile('otchet.txt'))
+
 
 @dp.callback_query(DeviceCallbackData.filter())
 async def Devicecallback(
@@ -236,12 +282,16 @@ async def Devicecallback(
     callback_data: DeviceCallbackData
 ):
     device_value = callback_data.value
+    connect = sqlite3.connect("database.db") 
+    command = connect.cursor()
     dates = command.execute(dates_command).fetchall()
+    connect.close()
     info = ""
     for date in dates:
         info += get_info(device_value, date[0])
     write_info_in(info)
     await callback.message.answer_document(FSInputFile('otchet.txt'))
+
 
 async def start_bot():
     await dp.start_polling(bot)
