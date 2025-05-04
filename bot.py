@@ -47,7 +47,7 @@ async def get_device_info(message: types.Message):
     for name in names:
         builder.add(
             types.InlineKeyboardButton(
-                text = f"{name[0].encode('windows-1251').decode('utf-8')}",
+                text = f"{name[0]}",
                 callback_data=DeviceNowCallbackData(value = name[0]).pack()
             )
         )
@@ -162,86 +162,86 @@ async def send_report(chat_id: int):
     get_halfhour_report()
     await bot.send_document(chat_id=chat_id, document=FSInputFile('otchet.txt'))
 
-# @dp.message(Command("info")
-# async def send_info(message: types.Message):
-#     kb = [
-#         [
-#             types.KeyboardButton(text="Всю информацию"),
-#             types.KeyboardButton(text="Конкретное устройство"),
-#             types.KeyboardButton(text="По дате")
-#         ],
-#     ]
-#     keyboard = types.ReplyKeyboardMarkup(
-#         keyboard=kb,
-#         resize_keyboard=True,
-#         input_field_placeholder="Выберите тип желаемой информации"
-#     )
-#     await message.answer("Какую информацию предоставить?", reply_markup=keyboard)
+@dp.message(Command("info"))
+async def send_info(message: types.Message):
+    kb = [
+        [
+            types.KeyboardButton(text="Всю информацию"),
+            types.KeyboardButton(text="Конкретное устройство"),
+            types.KeyboardButton(text="По дате")
+        ],
+    ]
+    keyboard = types.ReplyKeyboardMarkup(
+        keyboard=kb,
+        resize_keyboard=True,
+        input_field_placeholder="Выберите тип желаемой информации"
+    )
+    await message.answer("Какую информацию предоставить?", reply_markup=keyboard)
 
-# @dp.message(F.text.lower() == "всю информацию")
-# async def all_info(message: types.Message):
-#     write_info_in(process_all())
-#     await message.answer_document(FSInputFile('otchet.txt'))
+@dp.message(F.text.lower() == "всю информацию")
+async def all_info(message: types.Message):
+    write_info_in(process_all())
+    await message.answer_document(FSInputFile('otchet.txt'))
 
-# @dp.message(F.text.lower() == "конкретное устройство")
-# async def choose_equip(message: types.Message):
-#     builder = InlineKeyboardBuilder()
-#     names = command.execute(names_command).fetchall()
+@dp.message(F.text.lower() == "конкретное устройство")
+async def choose_equip(message: types.Message):
+    builder = InlineKeyboardBuilder()
+    names = command.execute(names_command).fetchall()
     
-#     for name in names:
-#         device_name = str(name[0])
-#         builder.add(types.InlineKeyboardButton(
-#             text=device_name.encode('windows-1251').decode('utf-8'),
-#             callback_data=DeviceCallbackData(value=device_name).pack()
-#         ))
+    for name in names:
+        device_name = str(name[0])
+        builder.add(types.InlineKeyboardButton(
+            text=device_name,
+            callback_data=DeviceCallbackData(value=device_name).pack()
+        ))
     
-#     await message.answer(
-#         "Выберите устройство:",
-#         reply_markup=builder.as_markup()
-#     )
+    await message.answer(
+        "Выберите устройство:",
+        reply_markup=builder.as_markup()
+    )
 
-# @dp.message(F.text.lower() == "по дате")
-# async def choose_date(message: types.Message):
-#     builder = InlineKeyboardBuilder()
-#     dates = command.execute(dates_command).fetchall()
+@dp.message(F.text.lower() == "по дате")
+async def choose_date(message: types.Message):
+    builder = InlineKeyboardBuilder()
+    dates = command.execute(dates_command).fetchall()
     
-#     for date in dates:
-#         date_period = str(date[0])
-#         builder.add(types.InlineKeyboardButton(
-#             text=date_period,
-#             callback_data=DateCallbackData(value=date_period).pack()
-#         ))
+    for date in dates:
+        date_period = str(date[0])
+        builder.add(types.InlineKeyboardButton(
+            text=date_period,
+            callback_data=DateCallbackData(value=date_period).pack()
+        ))
     
-#     await message.answer(
-#         "Выберите дату:",
-#         reply_markup=builder.as_markup()
-#     )
+    await message.answer(
+        "Выберите дату:",
+        reply_markup=builder.as_markup()
+    )
 
-# @dp.callback_query(DateCallbackData.filter())
-# async def Datecallback(
-#     callback: types.CallbackQuery, 
-#     callback_data: DateCallbackData
-# ):
-#     date_value = callback_data.value
-#     names = command.execute(names_command).fetchall()
-#     info = ""
-#     for name in names:
-#         info += get_info(name[0], date_value)
-#     write_info_in(info)
-#     await callback.message.answer_document(FSInputFile('otchet.txt'))
+@dp.callback_query(DateCallbackData.filter())
+async def Datecallback(
+    callback: types.CallbackQuery, 
+    callback_data: DateCallbackData
+):
+    date_value = callback_data.value
+    names = command.execute(names_command).fetchall()
+    info = ""
+    for name in names:
+        info += get_info(name[0], date_value)
+    write_info_in(info)
+    await callback.message.answer_document(FSInputFile('otchet.txt'))
 
-# @dp.callback_query(DeviceCallbackData.filter())
-# async def Devicecallback(
-#     callback: types.CallbackQuery, 
-#     callback_data: DeviceCallbackData
-# ):
-#     device_value = callback_data.value
-#     dates = command.execute(dates_command).fetchall()
-#     info = ""
-#     for date in dates:
-#         info += get_info(device_value, date[0])
-#     write_info_in(info)
-#     await callback.message.answer_document(FSInputFile('otchet.txt'))
+@dp.callback_query(DeviceCallbackData.filter())
+async def Devicecallback(
+    callback: types.CallbackQuery, 
+    callback_data: DeviceCallbackData
+):
+    device_value = callback_data.value
+    dates = command.execute(dates_command).fetchall()
+    info = ""
+    for date in dates:
+        info += get_info(device_value, date[0])
+    write_info_in(info)
+    await callback.message.answer_document(FSInputFile('otchet.txt'))
 
 async def start_bot():
     await dp.start_polling(bot)
