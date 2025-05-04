@@ -2,9 +2,20 @@ from contextlib import nullcontext
 from datetime import date, time, timedelta, datetime
 import sqlite3
 
-
+#
 # str_comm = f"""INSERT INTO consumption (equipment_id, date, time, energy)
-#     VALUES (1, '04.05.2025', '03:00:00', 0)"""
+#     VALUES (1, '04.05.2025', '04:00:00', 25.64)"""
+# connect = sqlite3.connect('database.db')
+# command = connect.cursor()
+#
+# command.execute(str_comm)
+# connect.commit()
+# connect.close()
+
+# str_comm = f"""UPDATE consumption
+#     SET energy = 0
+#     WHERE id = 11562
+# """
 # connect = sqlite3.connect('database.db')
 # command = connect.cursor()
 #
@@ -81,6 +92,28 @@ def check_end_of_cycle(name):
     return False
 
 
+def start_cycle(name, date, time):
+    connect = sqlite3.connect('database.db')
+    command = connect.cursor()
+    str_comm = f"""INSERT INTO charging_cycle_beginnings (equipment_id, date, time)
+             VALUES ((SELECT id FROM equipment
+                WHERE name = '{name}'), '{date}', '{time}');
+            """
+    command.execute(str_comm)
+    connect.commit()
+    connect.close()
+
+
+def check_start_of_cycle(name):
+    info = get_range_info(name, 1)
+    if info == 0:
+        return True
+    if info[0][2] == 0 and info[1][2] > 0:
+        start_cycle(name, info[1][0], info[1][1])
+        return True
+    return False
+
+
 def get_last_cycle_info(name):
     connect = sqlite3.connect('database.db')
     command = connect.cursor()
@@ -118,14 +151,16 @@ def get_last_cycle_stat(name):
 
 
 name = "038 QF 1,26 Р—РЈ PzS 12V 1   (kWh)"
-print(check_end_of_cycle(name))
+# print(check_end_of_cycle(name))
+#
+# rows = get_last_cycle_info(name)
+# for row in rows:
+#     print(row)
+#
+# print(get_stat_for_last_range(name, 4))
+# print()
+# print(get_last_cycle_stat(name))
+# print()
+# print(get_current_info(name))
 
-rows = get_last_cycle_info(name)
-for row in rows:
-    print(row)
-
-print(get_stat_for_last_range(name, 4))
-print()
-print(get_last_cycle_stat(name))
-print()
-print(get_current_info(name))
+print(check_start_of_cycle(name))
