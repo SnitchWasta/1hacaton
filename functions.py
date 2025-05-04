@@ -45,7 +45,15 @@ def get_info(name, date):
     total_consumption = 0
     for row in rows:
         total_consumption += row[2]
-    return str(date) + " | " + str(name) + " | " + str(total_consumption) + " | " + "Unknown" + "\n"
+    state = "Нет данных"
+    if len(rows) != 0:
+        state = "Выключен"
+        if rows[len(rows) - 1][2] > 0:
+            if rows[len(rows) - 1][2] <= 2:
+                state = "Работает в фоновом режиме"
+            else:
+                state = "Работает"
+    return str(date) + " | " + str(name) + " | " + str(round(total_consumption, 2)) + " | " + state + "\n"
 
 dates_command = """
 SELECT DISTINCT c.date FROM consumption c
